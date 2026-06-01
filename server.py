@@ -17,9 +17,9 @@ app = Flask(__name__)
 CORS(app)
 
 # ─── INDEX DEFINITIONS ────────────────────────────────────────────────────────
-# ^STOXX not available on Yahoo — using EURO STOXX 50 (^STOXX50E) as benchmark
+# ^STOXX not available on Yahoo — using STOXX 600 (EXSA.DE) as benchmark
 INDICES = [
-    {"name": "EURO STOXX 50", "ticker": "^STOXX50E",   "country": "Europe",        "benchmark": True},
+    {"name": "STOXX 600", "ticker": "EXSA.DE",   "country": "Europe",        "benchmark": True},
     {"name": "DAX",           "ticker": "^GDAXI",      "country": "Germany"},
     {"name": "CAC 40",        "ticker": "^FCHI",       "country": "France"},
     {"name": "FTSE 100",      "ticker": "^FTSE",       "country": "UK"},
