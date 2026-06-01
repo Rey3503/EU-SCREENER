@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>European Screener · Mansfield RS · Live</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#07090f;font-family:'DM Mono',monospace;color:#ccc;min-height:100vh;padding:32px 20px;}
+
+h1{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#fff;letter-spacing:-1px;margin-bottom:4px;}
+.tagline{color:#00d4ff;font-size:10px;letter-spacing:4px;margin-bottom:6px;}
+.meta{display:flex;align-items:center;gap:16px;margin-bottom:24px;flex-wrap:wrap;}
+.updated{color:#333;font-size:10px;letter-spacing:1px;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#6dffb0;display:inline-block;margin-right:6px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.refresh-btn{
+  background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);
+  border-radius:6px;padding:5px 14px;font-family:'DM Mono',monospace;
+  font-size:10px;color:#00d4ff;cursor:pointer;transition:all .2s;letter-spacing:1px;
+}
+.refresh-btn:hover{background:rgba(0,212,255,0.15);}
+
+/* LOADER */
+#loader{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:300px;gap:16px;
+}
+.spinner{
+  width:32px;height:32px;border:2px solid rgba(255,255,255,0.06);
+  border-top-color:#00d4ff;border-radius:50%;animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loader-text{color:#444;font-size:11px;letter-spacing:2px;}
+
+/* ERROR */
+#error-box{
+  display:none;background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.2);
+  border-radius:10px;padding:16px 20px;color:#ff6b6b;font-size:12px;line-height:1.8;
+  margin-bottom:24px;
+}
+#error-box code{color:#ffb3b3;font-size:11px;}
+
+/* FORMULA */
+.formula-box{
+  background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.12);
+  border-radius:10px;padding:12px 16px;margin-bottom:24px;font-size:11px;color:#555;line-height:1.7;
+}
+.formula-box span{color:#00d4ff;}
+
+/* TABS */
+.tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.tab{
+  background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);
+  border-radius:8px;padding:7px 16px;font-family:'DM Mono',monospace;
+  font-size:11px;color:#666;cursor:pointer;transition:all .2s;letter-spacing:1px;
+}
+.tab.active{background:rgba(0,212,255,0.12);border-color:#00d4ff55;color:#00d4ff;}
+.tab:hover{color:#aaa;}
+
+/* FILTER */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center;}
+.filter-label{font-size:10px;color:#444;letter-spacing:2px;margin-right:4px;}
+.filter-btn{
+  background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);
+  border-radius:6px;padding:5px 12px;font-family:'DM Mono',monospace;
+  font-size:10px;color:#555;cursor:pointer;transition:all .2s;letter-spacing:1px;
+}
+.filter-btn:hover{color:#aaa;}
+.f-all    {background:rgba(0,212,255,0.1);border-color:#00d4ff44;color:#00d4ff;}
+.f-strong {background:rgba(109,255,176,0.1);border-color:#6dffb044;color:#6dffb0;}
+.f-above  {background:rgba(109,255,176,0.06);border-color:#6dffb033;color:#a0ffc8;}
+.f-inline {background:rgba(255,255,255,0.05);border-color:#ffffff22;color:#aaa;}
+.f-weak   {background:rgba(255,107,107,0.1);border-color:#ff6b6b44;color:#ff6b6b;}
+
+/* TABLE */
+.table-wrap{width:100%;overflow-x:auto;margin-bottom:32px;}
+table{width:100%;border-collapse:collapse;min-width:680px;}
+thead tr{border-bottom:1px solid rgba(255,255,255,0.06);}
+th{font-size:9px;letter-spacing:2px;color:#444;padding:10px 12px;text-align:right;font-weight:400;}
+th:first-child{text-align:left;}
+th.sortable{cursor:pointer;user-select:none;}
+th.sortable:hover{color:#888;}
+tbody tr{border-bottom:1px solid rgba(255,255,255,0.03);transition:background .15s;}
+tbody tr:hover{background:rgba(255,255,255,0.03);}
+tbody tr.bmk{background:rgba(0,212,255,0.04);}
+td{padding:10px 12px;font-size:12px;text-align:right;vertical-align:middle;}
+td:first-child{text-align:left;}
+.idx-name{color:#fff;font-weight:500;}
+.idx-country{color:#444;font-size:10px;margin-top:2px;}
+.pos{color:#6dffb0;} .neg{color:#ff6b6b;} .neu{color:#888;}
+.badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:9px;letter-spacing:1px;}
+.b-strong{background:rgba(109,255,176,0.12);color:#6dffb0;}
+.b-above{background:rgba(109,255,176,0.07);color:#a0ffc8;}
+.b-inline{background:rgba(255,255,255,0.05);color:#888;}
+.b-weak{background:rgba(255,107,107,0.12);color:#ff6b6b;}
+.b-bench{background:rgba(0,212,255,0.12);color:#00d4ff;}
+
+/* RS BAR */
+.rs-wrap{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
+.rs-bg{width:72px;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;position:relative;}
+.rs-center{position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(255,255,255,0.2);}
+.rs-fill{height:100%;border-radius:3px;position:absolute;}
+
+/* CHART */
+.chart-box{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:16px;padding:20px 12px 12px;margin-bottom:20px;}
+.chart-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:#fff;margin-bottom:4px;}
+.chart-sub{color:#444;font-size:10px;letter-spacing:1px;margin-bottom:12px;}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:10px;color:#666;cursor:pointer;transition:opacity .2s;}
+.leg-item:hover{color:#aaa;}
+.leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.leg-item.dimmed{opacity:0.25;}
+
+/* RS MINI GRID */
+.rs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;}
+.rs-mini{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:12px;}
+.rs-mini-name{font-size:10px;letter-spacing:1px;margin-bottom:6px;}
+.rs-mini-val{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:2px;}
+.rs-mini-label{font-size:9px;letter-spacing:1px;}
+</style>
+</head>
+<body>
+
+<p class="tagline">EUROPEAN EQUITY MARKETS · LIVE DATA · YAHOO FINANCE</p>
+<h1>EU Indices Screener</h1>
+
+<div class="meta">
+  <span id="updated-label" class="updated">Loading…</span>
+  <button class="refresh-btn" onclick="loadData()">↻ REFRESH</button>
+</div>
+
+<div id="error-box"></div>
+
+<div id="loader">
+  <div class="spinner"></div>
+  <div class="loader-text">FETCHING MARKET DATA…</div>
+</div>
+
+<div id="app" style="display:none">
+
+  <div class="formula-box">
+    <span>Mansfield RS :</span> RSM<sub>t</sub> = [ (Index<sub>t</sub> / Index<sub>0</sub>) / (STOXX600<sub>t</sub> / STOXX600<sub>0</sub>) ] − 1 &nbsp;·&nbsp; expressed in %
+    <br><span style="color:#333">RSM > 0 = outperforms STOXX 600 &nbsp;·&nbsp; RSM < 0 = underperforms</span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="setTab('screener',this)">SCREENER</div>
+    <div class="tab" onclick="setTab('performance',this)">PERFORMANCE</div>
+    <div class="tab" onclick="setTab('rs',this)">MANSFIELD RS</div>
+  </div>
+
+  <div class="filter-bar" id="filter-bar">
+    <span class="filter-label">SIGNAL :</span>
+    <button class="filter-btn f-all"    data-f="ALL"    onclick="setFilter('ALL',this)">ALL</button>
+    <button class="filter-btn"          data-f="STRONG" onclick="setFilter('STRONG',this)">STRONG ▲▲</button>
+    <button class="filter-btn"          data-f="ABOVE"  onclick="setFilter('ABOVE',this)">ABOVE ▲</button>
+    <button class="filter-btn"          data-f="INLINE" onclick="setFilter('INLINE',this)">INLINE ─</button>
+    <button class="filter-btn"          data-f="WEAK"   onclick="setFilter('WEAK',this)">WEAK ▼</button>
+  </div>
+
+  <!-- SCREENER -->
+  <div id="tab-screener">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>INDEX</th>
+            <th class="sortable" onclick="sortBy('ytd')">YTD</th>
+            <th class="sortable" onclick="sortBy('m1')">1M</th>
+            <th class="sortable" onclick="sortBy('m3')">3M</th>
+            <th class="sortable" onclick="sortBy('m6')">6M</th>
+            <th class="sortable" onclick="sortBy('rsm_final')">MANSFIELD RS</th>
+            <th>SIGNAL</th>
+          </tr>
+        </thead>
+        <tbody id="screener-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PERFORMANCE -->
+  <div id="tab-performance" style="display:none">
+    <div class="chart-title">Weekly Performance — 52 weeks</div>
+    <div class="chart-sub">REBASED TO 100 · STOXX 600 DASHED · CLICK LEGEND TO TOGGLE</div>
+    <div class="legend" id="perf-legend"></div>
+    <div class="chart-box"><canvas id="perfChart" height="300"></canvas></div>
+  </div>
+
+  <!-- MANSFIELD RS -->
+  <div id="tab-rs" style="display:none">
+    <div class="chart-title">Mansfield RS vs STOXX 600</div>
+    <div class="chart-sub">ABOVE 0% LINE = OUTPERFORMING · 52-WEEK WEEKLY</div>
+    <div class="chart-box"><canvas id="rsChart" height="300"></canvas></div>
+    <br>
+    <div class="rs-grid" id="rs-grid"></div>
+  </div>
+
+</div><!-- #app -->
+
+<script>
+const API = "http://localhost:5000/api/screener";
+let DATA = [];
+let sortCol = "rsm_final";
+let sortDir = -1;
+let currentFilter = "ALL";
+let perfChart, rsChart;
+
+// ─── FETCH ────────────────────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById("loader").style.display = "flex";
+  document.getElementById("app").style.display = "none";
+  document.getElementById("error-box").style.display = "none";
+
+  try {
+    const res = await fetch(API);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    DATA = json.indices;
+    document.getElementById("updated-label").innerHTML =
+      `<span class="live-dot"></span>Updated: ${new Date(json.updated).toLocaleTimeString()}`;
+    render();
+    document.getElementById("loader").style.display = "none";
+    document.getElementById("app").style.display = "block";
+  } catch(e) {
+    document.getElementById("loader").style.display = "none";
+    const box = document.getElementById("error-box");
+    box.style.display = "block";
+    box.innerHTML = `
+      ⚠ Cannot reach the backend server.<br>
+      Make sure <code>server.py</code> is running:<br><br>
+      <code>pip install flask flask-cors yfinance</code><br>
+      <code>python server.py</code><br><br>
+      Then open this file in your browser and click ↻ REFRESH.
+      <br><br>Error: <code>${e.message}</code>
+    `;
+    document.getElementById("updated-label").textContent = "Connection failed";
+  }
+}
+
+// ─── RENDER ALL ───────────────────────────────────────────────────────────────
+function render() {
+  renderTable();
+  renderPerfChart();
+  renderRsChart();
+  renderRsGrid();
+}
+
+// ─── TABLE ────────────────────────────────────────────────────────────────────
+function renderTable() {
+  const tbody = document.getElementById("screener-body");
+  tbody.innerHTML = "";
+
+  let rows = [...DATA].sort((a,b) => {
+    if (a.benchmark) return -1;
+    if (b.benchmark) return 1;
+    return sortDir * ((a[sortCol]||0) - (b[sortCol]||0));
+  });
+
+  rows.forEach(idx => {
+    const hidden = currentFilter !== "ALL" && !idx.benchmark && idx.signal !== currentFilter;
+    if (hidden) return;
+
+    const rsm = idx.rsm_final;
+    const rsmStr = idx.benchmark ? "—" : (rsm>=0?"+":"") + rsm.toFixed(2) + "%";
+    const rsmColor = idx.benchmark ? "#00d4ff" : rsm>=0 ? "#6dffb0" : "#ff6b6b";
+    const barPct = Math.min(48, Math.abs(rsm) * 3);
+    const barLeft = rsm>=0 ? "50%" : `${50-barPct}%`;
+    const badgeCls = {STRONG:"b-strong",ABOVE:"b-above",INLINE:"b-inline",WEAK:"b-weak",BENCHMARK:"b-bench"}[idx.signal]||"b-inline";
+
+    const fmt = (v) => v==null ? "—" : `${v>=0?"+":""}${v.toFixed(2)}%`;
+    const cls = (v) => v==null?"neu":v>=0?"pos":"neg";
+
+    const tr = document.createElement("tr");
+    if (idx.benchmark) tr.classList.add("bmk");
+    tr.innerHTML = `
+      <td>
+        <div class="idx-name" style="color:${idx.color}">${idx.name}</div>
+        <div class="idx-country">${idx.country} <span style="color:#2a2a2a">· ${idx.ticker}</span></div>
+      </td>
+      <td class="${cls(idx.ytd)}">${fmt(idx.ytd)}</td>
+      <td class="${cls(idx.m1)}">${fmt(idx.m1)}</td>
+      <td class="${cls(idx.m3)}">${fmt(idx.m3)}</td>
+      <td class="${cls(idx.m6)}">${fmt(idx.m6)}</td>
+      <td>
+        <div class="rs-wrap">
+          <span style="color:${rsmColor};min-width:60px;text-align:right;">${rsmStr}</span>
+          <div class="rs-bg">
+            <div class="rs-center"></div>
+            <div class="rs-fill" style="left:${barLeft};width:${barPct}%;background:${rsmColor};"></div>
+          </div>
+        </div>
+      </td>
+      <td><span class="badge ${badgeCls}">${idx.signal}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function sortBy(col) {
+  sortDir = sortCol===col ? sortDir*-1 : -1;
+  sortCol = col;
+  renderTable();
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll(".filter-btn").forEach(b => {
+    b.className = "filter-btn";
+  });
+  const map = {ALL:"f-all",STRONG:"f-strong",ABOVE:"f-above",INLINE:"f-inline",WEAK:"f-weak"};
+  btn.classList.add(map[f]||"f-all");
+  renderTable();
+  renderRsGrid();
+}
+
+// ─── PERFORMANCE CHART ────────────────────────────────────────────────────────
+function renderPerfChart() {
+  if (perfChart) perfChart.destroy();
+  const bmk = DATA.find(i => i.benchmark);
+  const labels = bmk ? bmk.labels : [];
+
+  const datasets = DATA.map(idx => ({
+    label: idx.name,
+    data: idx.data,
+    borderColor: idx.color,
+    backgroundColor: "transparent",
+    borderWidth: idx.benchmark ? 2.5 : 1.5,
+    borderDash: idx.benchmark ? [5,3] : [],
+    pointRadius: 0, pointHoverRadius: 4, tension: 0.3,
+  }));
+
+  const ctx = document.getElementById("perfChart").getContext("2d");
+  perfChart = new Chart(ctx, {
+    type:"line",
+    data:{ labels, datasets },
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:"rgba(7,9,15,0.95)",
+          borderColor:"rgba(255,255,255,0.08)",borderWidth:1,
+          titleColor:"#555",bodyColor:"#fff",
+          callbacks:{ label: c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}` }
+        }
+      },
+      scales:{
+        x:{grid:{color:"rgba(255,255,255,0.03)"},ticks:{color:"#444",font:{family:"DM Mono",size:9},maxTicksLimit:12}},
+        y:{grid:{color:"rgba(255,255,255,0.03)"},ticks:{color:"#444",font:{family:"DM Mono",size:10}}}
+      }
+    }
+  });
+
+  // Legend
+  const legendEl = document.getElementById("perf-legend");
+  legendEl.innerHTML = "";
+  DATA.forEach((idx,i) => {
+    const item = document.createElement("div");
+    item.className = "leg-item";
+    item.innerHTML = `<div class="leg-dot" style="background:${idx.color}"></div>${idx.name}`;
+    item.onclick = () => {
+      perfChart.data.datasets[i].hidden = !perfChart.data.datasets[i].hidden;
+      item.classList.toggle("dimmed");
+      perfChart.update();
+    };
+    legendEl.appendChild(item);
+  });
+}
+
+// ─── RS CHART ─────────────────────────────────────────────────────────────────
+function renderRsChart() {
+  if (rsChart) rsChart.destroy();
+  const bmk = DATA.find(i => i.benchmark);
+  const labels = bmk ? bmk.labels : [];
+  const n = bmk ? bmk.data.length : 52;
+
+  const datasets = [
+    {
+      label:"STOXX 600 (0%)",
+      data: Array(n).fill(0),
+      borderColor:"#00d4ff",borderWidth:1.5,
+      borderDash:[5,3],pointRadius:0,tension:0,
+    },
+    ...DATA.filter(i=>!i.benchmark).map(idx=>({
+      label: idx.name,
+      data: idx.rs_series,
+      borderColor: idx.color,
+      backgroundColor:"transparent",
+      borderWidth:1.5,
+      pointRadius:0,pointHoverRadius:4,tension:0.3,
+    }))
+  ];
+
+  const ctx = document.getElementById("rsChart").getContext("2d");
+  rsChart = new Chart(ctx, {
+    type:"line",
+    data:{ labels, datasets },
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:"rgba(7,9,15,0.95)",
+          borderColor:"rgba(255,255,255,0.08)",borderWidth:1,
+          titleColor:"#555",bodyColor:"#fff",
+          callbacks:{ label: c=>`${c.dataset.label}: ${c.parsed.y>=0?"+":""}${c.parsed.y.toFixed(2)}%` }
+        }
+      },
+      scales:{
+        x:{grid:{color:"rgba(255,255,255,0.03)"},ticks:{color:"#444",font:{family:"DM Mono",size:9},maxTicksLimit:12}},
+        y:{
+          grid:{color:"rgba(255,255,255,0.03)"},
+          ticks:{color:"#444",font:{family:"DM Mono",size:10},callback:v=>(v>=0?"+":"")+v+"%"}
+        }
+      }
+    }
+  });
+}
+
+// ─── RS MINI GRID ─────────────────────────────────────────────────────────────
+function renderRsGrid() {
+  const grid = document.getElementById("rs-grid");
+  grid.innerHTML = "";
+  [...DATA]
+    .filter(i => !i.benchmark && (currentFilter==="ALL" || i.signal===currentFilter))
+    .sort((a,b) => b.rsm_final - a.rsm_final)
+    .forEach(idx => {
+      const col = idx.rsm_final>=0 ? "#6dffb0" : "#ff6b6b";
+      const div = document.createElement("div");
+      div.className = "rs-mini";
+      div.innerHTML = `
+        <div class="rs-mini-name" style="color:${idx.color}">${idx.name}</div>
+        <div class="rs-mini-val" style="color:${col}">${idx.rsm_final>=0?"+":""}${idx.rsm_final.toFixed(2)}%</div>
+        <div class="rs-mini-label" style="color:${col}">${idx.rsm_final>=0?"▲ OUTPERFORMS":"▼ UNDERPERFORMS"}</div>
+        <div style="font-size:9px;color:#333;margin-top:4px;">${idx.country}</div>
+      `;
+      grid.appendChild(div);
+    });
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function setTab(name, el) {
+  ["screener","performance","rs"].forEach(t => {
+    document.getElementById("tab-"+t).style.display = t===name?"block":"none";
+  });
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("filter-bar").style.display = name==="performance"?"none":"flex";
+  if(name==="performance" && perfChart) perfChart.resize();
+  if(name==="rs" && rsChart){ rsChart.resize(); renderRsGrid(); }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
